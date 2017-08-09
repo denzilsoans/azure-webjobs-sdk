@@ -26,7 +26,7 @@ namespace Microsoft.Azure.WebJobs.ServiceBus.UnitTests
             public TestEventHubAsyncCollector() : base(_testClient)
             {
             }
-            protected override Task SendBatchAsync(EventData[] batch)
+            protected override Task SendBatchAsync(IEnumerable<EventData> batch)
             {
                 lock(_sentEvents)
                 {

@@ -98,7 +98,7 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
 
             if (batch.Length > 0)
             {
-                await this.SendBatchAsync(batch);
+                await this.SendMultipleBatchAsync(batch);
 
                 // Dispose all messages to help with memory pressure. If this is missed, the finalizer thread will still get them. 
                 foreach (var msg in batch)
@@ -112,7 +112,35 @@ namespace Microsoft.Azure.WebJobs.ServiceBus
         /// Send the batch of events.
         /// </summary>
         /// <param name="batch">the set of events to send</param>
-        protected virtual async Task SendBatchAsync(EventData[] batch)
+        protected async Task SendMultipleBatchAsync(EventData[] batch)
+        {
+            // Must sort by partition key. 
+            // All items in a call to Send() must be in the same partition. 
+            Dictionary<string, List<EventData>> buckets = new Dictionary<string, List<EventData>>();
+            foreach (var item in batch)
+            {
+                var key = item.PartitionKey ?? string.Empty;                
+
+                List<EventData> partition;
+                if (!buckets.TryGetValue(key, out partition))
+                {
+                    partition = new List<EventData>();
+                    buckets[key] = partition;
+                }
+                partition.Add(item);
+            }
+
+            foreach (var bucket in buckets.Values)
+            {
+                await this.SendBatchAsync(bucket);
+            }
+        }
+
+        /// <summary>
+        /// Send the batch of events.
+        /// </summary>
+        /// <param name="batch">the set of events to send</param>
+        protected virtual async Task SendBatchAsync(IEnumerable<EventData> batch)
         {
             await _client.SendBatchAsync(batch);
         }
